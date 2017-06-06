@@ -206,8 +206,8 @@ void rbt_insert_fix_up(TreePtr t, NodePtr z) {
 				z is right child of its parent
 				Left-rotation required */
 				if (z == z->p->right) {
-					left_rotate(t, z->p);
-					z = z->left;
+					z = z->p;
+					left_rotate(t, z);
 				}
 
 				/* Case : 3
@@ -420,14 +420,29 @@ void rbt_delete_fixup(TreePtr t, NodePtr x) {
 	x->color = false;
 }
 
+NodePtr rbt_max(TreePtr t, NodePtr x) {
+	if (x == t->nil)
+		return x;
+
+	while (x->right != t->nil)
+		x = x->right;
+
+	return x;
+}
+
+
+
 void rbt_delete(TreePtr t, NodePtr z) {
 	if (z == t->nil)
 		return;
 
 	NodePtr y = z;
 	NodePtr x = NULL;
-
+	NodePtr zz = NULL;
+	int data;
+	NodePtr yy = NULL;
 	bool y_origin_color = y->color;
+
 
 
 	//지우려는 노드 오른쪽 자식만 있으면 그 자식 올리기 + 아예 자식 없는 것 포함
@@ -442,6 +457,21 @@ void rbt_delete(TreePtr t, NodePtr z) {
 	}
 	else {
 		//양쪽 자식이 있을 때
+		if (z == t->root) {
+			zz = rbt_max(t, t->root->left);
+			data = zz->key;
+			yy = t->root;
+
+			rbt_delete(t, zz);
+			if (t->root == yy)
+				t->root = zz;
+			else {
+				rbt_delete(t, yy);
+				rbt_insert(t, node_alloc(t, data));
+			}
+			return;
+		}
+
 		//successor 찾고 origin color 저장
 		y = rbt_min(t, z->right);
 		y_origin_color = y->color;
@@ -556,9 +586,7 @@ int main() {
 		else if (data = 0)
 			break;
 
-		//check point
-		if (i % 10 == 0)
-			p(t);
+	
 	}
 	p(t);
 	fclose(fp);
