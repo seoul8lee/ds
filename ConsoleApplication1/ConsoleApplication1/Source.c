@@ -535,8 +535,8 @@ void p(TreePtr t) {
 	printf("nb = %d\n", rbt_blacknode(t, t->root));
 	rbt_upbh(t, t->root);
 	printf("bh = %d\n", rbt_bh(t, t->root));
-	rbt_print(t, t->root, 1);
-	//rbt_inorder(t, t->root);
+	//rbt_print(t, t->root, 1);
+	rbt_inorder(t, t->root);
 }
 
 int main() {
