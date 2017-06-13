@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <stdbool.h>
+#include <windows.h>
+#include <tchar.h>
+#include <strsafe.h>
+#include <string.h>
+#include <wchar.h>
 
 typedef struct NodeType {
 	bool color; //red=true, blk=false
@@ -17,6 +22,9 @@ typedef struct TreeType {
 	struct NodeType* nil;
 	struct NodeType* root;
 	int rootbh;
+	int insertnode;
+	int deletenode;
+	int missnode;
 }Tree;
 
 typedef struct TreeType* TreePtr;
@@ -40,6 +48,9 @@ TreePtr rbt_init() {
 	tree->nil = rbt_nil();
 	tree->root = tree->nil;
 	tree->rootbh = 0;
+	tree->insertnode = 0;
+	tree->deletenode = 0;
+	tree->missnode = 0;
 	return tree;
 }
 
@@ -293,7 +304,7 @@ void rbt_insert(TreePtr t, NodePtr z) {
 	z->color = true;
 
 	rbt_insert_fix_up(t, z);
-
+	t->insertnode++;
 }
 
 
@@ -340,7 +351,7 @@ void rbt_delete_fixup(TreePtr t, NodePtr x) {
 		if (x == x->p->left) {
 			w = x->p->right; //sibling
 
-							 //case 1 : x's sibling w is red
+			 //case 1 : x's sibling w is red
 			if (w->color == true) {
 				w->color = false;
 				x->p->color = true;
@@ -348,32 +359,31 @@ void rbt_delete_fixup(TreePtr t, NodePtr x) {
 				w = x->p->right;
 			}
 
-			else { // x's sibling w is blk
+			 // x's sibling w is blk
 
-				   //case 2 : both w's children are blk
-				if (w->right->color == false) {
-					if (w->left->color == false) {
+			//case 2 : both w's children are blk
+			if (w->left->color == false && w->right->color == false) {
 						w->color = true;
 						x = x->p;
 					}
 
-					//case 3 : w's left is red, w's right is blk
-					else if (w->left->color == true) {
-						w->left->color = false;
-						w->color = true;
-						right_rotate(t, w);
-						w = x->p->right;
-					}
+			//case 3 : w's left is red, w's right is blk
+			else{
+				
+				if (w->right->color == false) {
+					w->left->color = false;
+					w->color = true;
+					right_rotate(t, w);
+					w = x->p->right;
 				}
+				w->color = x->p->color;
+				x->p->color = false;
+				w->right->color = false;
+				left_rotate(t, x->p);
+				x = t->root;
 
 				//case 4 : w's right is red
-				if (w->right->color == true) {
-					w->color = x->p->color;
-					x->p->color = false;
-					w->right->color = false;
-					left_rotate(t, x->p);
-					x = t->root;
-				}
+				
 			}
 		}
 
@@ -388,59 +398,48 @@ void rbt_delete_fixup(TreePtr t, NodePtr x) {
 				w = x->p->left;
 			}
 
-			else { // x's sibling w is blk
+			// x's sibling w is blk
 
-				   //case 2 : both w's children are blk
-				if (w->left->color == false) {
-					if (w->right->color == false) {
+			//case 2 : both w's children are blk
+			if (w->right->color == false && w->left->color == false) {
 						w->color = true;
 						x = x->p;
 					}
 
 					//case 3 : w's right is red, w's left is blk
-					else if (w->right->color == true) {
-						w->right->color = false;
-						w->color = true;
-						left_rotate(t, w);
-						w = x->p->left;
-					}
+			else {
+
+				if (w->left->color == false) {
+					w->right->color = false;
+					w->color = true;
+					left_rotate(t, w);
+					w = x->p->left;
 				}
 
+
 				//case 4 : w's left is red
-				if (w->left->color == true) {
-					w->color = x->p->color;
-					x->p->color = false;
-					w->left->color = false;
-					right_rotate(t, x->p);
-					x = t->root;
-				}
+				w->color = x->p->color;
+				x->p->color = false;
+				w->left->color = false;
+				right_rotate(t, x->p);
+				x = t->root;
+
 			}
 		}
 	}
 	x->color = false;
 }
 
-NodePtr rbt_max(TreePtr t, NodePtr x) {
-	if (x == t->nil)
-		return x;
-
-	while (x->right != t->nil)
-		x = x->right;
-
-	return x;
-}
-
-
 
 void rbt_delete(TreePtr t, NodePtr z) {
-	if (z == t->nil)
+	if (z == t->nil) {
+		t->missnode++;
 		return;
+	}
 
 	NodePtr y = z;
 	NodePtr x = NULL;
-	NodePtr zz = NULL;
-	int data;
-	NodePtr yy = NULL;
+	
 	bool y_origin_color = y->color;
 
 
@@ -457,25 +456,11 @@ void rbt_delete(TreePtr t, NodePtr z) {
 	}
 	else {
 		//양쪽 자식이 있을 때
-		if (z == t->root) {
-			zz = rbt_max(t, t->root->left);
-			data = zz->key;
-			yy = t->root;
-
-			rbt_delete(t, zz);
-			if (t->root == yy)
-				t->root = zz;
-			else {
-				rbt_delete(t, yy);
-				rbt_insert(t, node_alloc(t, data));
-			}
-			return;
-		}
-
 		//successor 찾고 origin color 저장
 		y = rbt_min(t, z->right);
 		y_origin_color = y->color;
 		x = y->right;
+		
 		if (y->p == z)
 			x->p = y;
 		else {
@@ -483,6 +468,7 @@ void rbt_delete(TreePtr t, NodePtr z) {
 			y->right = z->right;
 			y->right->p = y;
 		}
+		
 		rbt_transplant(t, z, y);
 		y->left = z->left;
 		y->left->p = y;
@@ -492,7 +478,7 @@ void rbt_delete(TreePtr t, NodePtr z) {
 	if (y_origin_color == false)
 		rbt_delete_fixup(t, x);
 
-
+	t->deletenode++;
 }
 
 
@@ -523,7 +509,10 @@ void rbt_inorder(TreePtr t, NodePtr root) {
 	if (root == t->nil)
 		return;
 	rbt_inorder(t, root->left);
-	printf("%d\n", root->key);
+	if(root->color)
+		printf("%d R\n", root->key);
+	else
+		printf("%d B\n", root->key);
 	rbt_inorder(t, root->right);
 }
 
@@ -557,26 +546,31 @@ int rbt_blacknode(TreePtr t, NodePtr n) {
 	}
 	return result;
 }
-
-
 // 과제 결과 값
 void p(TreePtr t) {
 	printf("total = %d\n", total(t, t->root));
+	printf("insert = %d\n", t->insertnode);
+	printf("deleted = %d\n", t->deletenode);
+	printf("miss = %d\n", t->missnode);
 	printf("nb = %d\n", rbt_blacknode(t, t->root));
 	rbt_upbh(t, t->root);
 	printf("bh = %d\n", rbt_bh(t, t->root));
-	//rbt_print(t, t->root, 1);
 	rbt_inorder(t, t->root);
 }
 
-int main() {
+int checktext(wchar_t* fname) {
+	wchar_t* s1;
+	s1 = wcsrchr(fname, L'.');
+	return wcscmp(L".txt", s1);
+}
+
+void filetree(wchar_t* name) {
 	TreePtr t = rbt_init();
 	int data;
-	int i = 0;
 
-	FILE * fp = fopen("input.txt", "r");
+	FILE * fp = _wfopen(name, "r");
 	while (fscanf_s(fp, "%d", &data) != EOF) {
-		i++;
+
 		if (data > 0)
 			rbt_insert(t, node_alloc(t, data));
 		else if (data < 0) {
@@ -585,13 +579,78 @@ int main() {
 		}
 		else if (data = 0)
 			break;
-
-	
 	}
+
 	p(t);
 	fclose(fp);
+}
+
+//파일 이름 출력
+DWORD printfilename() {
+	WIN32_FIND_DATA ffd;
+	TCHAR szDir[MAX_PATH];
+	size_t length_of_arg;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+	DWORD dwError = 0;
+	int i = 0;
+	StringCchCopy(szDir, MAX_PATH, TEXT("."));
+
+	//_tprintf(TEXT("\nTarget directory is %s\n\n"), szDir);
+
+	// Prepare string for use with FindFile functions.  First, copy the
+	// string to a buffer, then append '\*' to the directory name.
+
+
+	StringCchCat(szDir, MAX_PATH, TEXT("\\*"));
+
+	// Find the first file in the directory.
+
+	hFind = FindFirstFile(szDir, &ffd);
+
+	if (INVALID_HANDLE_VALUE == hFind)
+	{
+		printf("Error: FindFirstFile\n");
+		return dwError;
+	}
+
+	// List all the files in the directory with some info about them.
+
+	do
+	{
+		
+		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			i = 0;
+			/*_tprintf(TEXT("  %s   <DIR>\n"), ffd.cFileName);*/
+		}
+		else
+		{
+			if (checktext(ffd.cFileName) == 0) {
+				_tprintf(TEXT("filename=%s\n"), ffd.cFileName);
+				filetree(ffd.cFileName);
+			}
+		}
+	} while (FindNextFile(hFind, &ffd) != 0);
+
+	dwError = GetLastError();
+	if (dwError != ERROR_NO_MORE_FILES)
+	{
+		printf("Error: FindFirstFile\n");
+	}
+
+	FindClose(hFind);
+	getchar();
+	return dwError;
+}
 
 
 
+
+
+
+int main() {
+	
+	DWORD dw = printfilename();
+		
 	return;
 }
